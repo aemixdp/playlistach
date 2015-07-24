@@ -1,0 +1,17 @@
+body {
+  text-align: center;
+}
+
+button:hover {
+  cursor: pointer;
+}
+
+#search-results {
+  margin-left: 10%;
+}
+
+#search-results, #playlist {
+  box-sizing: border-box;
+  float: left;
+  width: 40%;
+}
