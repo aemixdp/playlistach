@@ -1,21 +1,31 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 
-module Playlistach.Vk where
+module Playlistach.Vk (Song(..), searchAudio, exec) where
 
-import           Data.Aeson ((.=))
-import qualified Data.Aeson         as Aeson
+import           GHC.Generics (Generic)
+import           Data.Aeson (ToJSON)
 import qualified Web.VKHS.Types     as Vk
 import qualified Web.VKHS.Login     as Vk
 import qualified Web.VKHS.API       as Vk
 import qualified Web.VKHS.API.Types as Vk
 
-searchAudio :: String -> Vk.Env Vk.CallEnv -> IO (Either Vk.APIError [Vk.MusicRecord])
+data Song = Song
+    { songId     :: String
+    , songArtist :: String
+    , songTitle  :: String
+    , songUrl    :: String }
+  deriving (Eq, Show, Generic)
+
+instance ToJSON Song
+
+searchAudio :: String -> Vk.Env Vk.CallEnv -> IO (Either Vk.APIError [Song])
 searchAudio query env =
     fmap entries <$> Vk.api' env "audio.search" options
   where
-    entries (Vk.Response (Vk.SL _ es)) = es
+    entries (Vk.Response (Vk.SL _ es)) = map toSong es
     options = [ ("q", query)
               , ("auto_complete", "1")
               , ("lyrics", "0")
@@ -35,9 +45,9 @@ vk user pass cmd = do
 exec :: Show a => String -> String -> (Vk.Env Vk.CallEnv -> IO (Either a b)) -> IO b
 exec user pass cmd = either (error . show) id <$> vk user pass cmd
 
-musicRecordJson :: Vk.MusicRecord -> Aeson.Value
-musicRecordJson Vk.MR{..} =
-    Aeson.object [ "id"     .= (show owner_id ++ "_" ++ show aid)
-                 , "artist" .= artist
-                 , "title"  .= title
-                 , "url"    .= url ]
+toSong :: Vk.MusicRecord -> Song
+toSong Vk.MR{..} = Song
+    { songId     = show owner_id ++ "_" ++ show aid
+    , songArtist = artist
+    , songTitle  = title
+    , songUrl    = url }
