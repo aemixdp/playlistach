@@ -1,47 +1,105 @@
-module Playlistach.Mpeg where
+{-# LANGUAGE BinaryLiterals #-}
+
+module Playlistach.Mpeg (Header(..), headerFromBS, headerFromPipe) where
 
 import Data.Bits
+import Data.Array.Unboxed     as A
 import Data.ByteString        as BS
 import Data.ByteString.Unsafe as BS
 import Pipes
 
-data Version = Mpeg10 | Mpeg20 | Mpeg25
-  deriving (Eq, Show, Read)
-
-data Layer = LayerI | LayerII | LayerIII
-  deriving (Eq, Show, Read)
-
-data ChannelMode = Stereo | JointStereo | DualMono | Mono
-  deriving (Eq, Show, Read)
-
 data Header = Header
-  { version     :: Version
-  , layer       :: Layer
-  , bitrate     :: Int
-  , frequency   :: Int
-  , channelMode :: ChannelMode }
+  { version   :: Int
+  , layer     :: Int
+  , bitrate   :: Maybe Int
+  , frequency :: Int }
   deriving (Eq, Show, Read)
 
-headerFromBS :: ByteString -> Header
-headerFromBS bs = undefined
+headerFromBS :: ByteString -> Int -> Header
+headerFromBS bs offset = Header version layer bitrate frequency
   where
-    version = case (b1 .&. 0x18) of
-        0x3 -> Mpeg10
-        0x2 -> Mpeg20
-        _   -> Mpeg25
+    bitrate
+        | isVBR     = Nothing
+        | otherwise = Just $ bitrates A.! ((bitrateIndex - 1) * 5 + versionLayerOffset)
+      where
+        bitrateIndex = shiftR (b2 .&. 0b11110000) 4
+        versionLayerOffset = 3 * (version - 1) + layerOffset - 1
+        layerOffset
+            | version == 2 = min 2 layer
+            | otherwise    = layer
 
-    layer = case (b1 .&. 0x6) of
-        0x3 -> LayerI
-        0x2 -> LayerII
-        _   -> LayerIII
+    frequency = frequencies A.! (shiftR (b2 .&. 0b00001100) 2 * 2 + version - 1)
 
-    b0 = BS.unsafeIndex bs 0
-    b1 = BS.unsafeIndex bs 1
-    b2 = BS.unsafeIndex bs 2
-    b3 = BS.unsafeIndex bs 3
+    version
+        | shiftR (b1 .&. 0b00011000) 3 == 3 = 1
+        | otherwise                         = 2
+
+    layer = 4 - shiftR (b1 .&. 0b00000110) 1
+
+    -- TODO: VBRI, MLLP
+    isVBR =
+        ix 36 == 0x58 && -- X
+        ix 37 == 0x69 && -- i
+        ix 38 == 0x6E && -- n
+        ix 39 == 0x67    -- g
+
+    b1 = ix 1
+    b2 = ix 2
+
+    ix :: Int -> Int
+    ix n = fromIntegral $ BS.unsafeIndex bs (offset + n)
 
 headerFromPipe :: Monad m => Producer ByteString m r -> m (Header, Producer ByteString m r)
-headerFromPipe p = next p >>= either fail proceed
+headerFromPipe p = next p >>= either (ppterm "headerFromPipe") proceed
   where
-    fail _ = error "Premature producer termination!"
-    proceed (bs, p') = return (headerFromBS bs, yield bs >> p')
+    proceed (bs, p') = do
+        (bs', offset, p'') <- skipBytes (getID3v2TagSize bs + 10) (yield bs >> p')
+        return (headerFromBS bs' offset, p'')
+
+getID3v2TagSize :: ByteString -> Int
+getID3v2TagSize bs =
+    shiftL (ix 6) 21 .|.
+    shiftL (ix 7) 14 .|.
+    shiftL (ix 8)  7 .|.
+           (ix 9)
+  where
+    ix n = fromIntegral (BS.unsafeIndex bs n)
+
+skipBytes :: Monad m => Int -> Producer ByteString m r -> m (ByteString, Int, Producer ByteString m r)
+skipBytes n p = go (return ()) p n
+  where
+    go l r n = next r >>= either (ppterm "skipBytes") proceed
+      where
+        proceed (bs, r')
+            | len <= n  = go (l >> yield bs) r' (n - len)
+            | otherwise = return (bs, n, l >> yield bs >> r')
+          where
+            len = BS.length bs
+
+ppterm :: String -> e
+ppterm fname = error (fname ++ ": premature producer termination!")
+
+bitrates :: UArray Int Int
+bitrates =
+    A.listArray (0, 69) $
+        [ 32,  32,  32,  32,  8
+        , 64,  48,  40,  48,  16
+        , 96,  56,  48,  56,  24
+        , 128, 64,  56,  64,  32
+        , 160, 80,  64,  80,  40
+        , 192, 96,  80,  96,  48
+        , 224, 112, 96,  112, 56
+        , 256, 128, 112, 128, 64
+        , 288, 160, 128, 144, 80
+        , 320, 192, 160, 160, 96
+        , 352, 224, 192, 176, 112
+        , 384, 256, 224, 192, 128
+        , 416, 320, 256, 224, 144
+        , 448, 384, 320, 256, 160 ]
+
+frequencies :: UArray Int Int
+frequencies =
+    A.listArray (0, 5) $
+        [ 44100, 22050
+        , 48000, 24000
+        , 32000, 16000 ]
