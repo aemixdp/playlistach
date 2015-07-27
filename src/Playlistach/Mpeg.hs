@@ -1,6 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
 
-module Playlistach.Mpeg (Header(..), headerFromBS, headerFromPipe) where
+module Playlistach.Mpeg (Header(..), findHeader) where
 
 import Data.Bits
 import Data.Array.Unboxed     as A
@@ -14,6 +14,16 @@ data Header = Header
   , bitrate   :: Maybe Int
   , frequency :: Int }
   deriving (Eq, Show, Read)
+
+findHeader :: Monad m => Producer ByteString m r -> m (Header, Producer ByteString m r)
+findHeader p = next p >>= either (ppterm "findHeader") proceed
+  where
+    proceed (bs, p')
+        | isID3TagPresent bs = do
+            (bs', offset, p'') <- skipBytes (getID3TagSize bs + 10) (yield bs >> p')
+            return (headerFromBS bs' offset, p'')
+        | otherwise =
+            return (headerFromBS bs 0, yield bs >> p')
 
 headerFromBS :: ByteString -> Int -> Header
 headerFromBS bs offset = Header version layer bitrate frequency
@@ -49,21 +59,23 @@ headerFromBS bs offset = Header version layer bitrate frequency
     ix :: Int -> Int
     ix n = fromIntegral $ BS.unsafeIndex bs (offset + n)
 
-headerFromPipe :: Monad m => Producer ByteString m r -> m (Header, Producer ByteString m r)
-headerFromPipe p = next p >>= either (ppterm "headerFromPipe") proceed
-  where
-    proceed (bs, p') = do
-        (bs', offset, p'') <- skipBytes (getID3v2TagSize bs + 10) (yield bs >> p')
-        return (headerFromBS bs' offset, p'')
-
-getID3v2TagSize :: ByteString -> Int
-getID3v2TagSize bs =
+getID3TagSize :: ByteString -> Int
+getID3TagSize bs =
     shiftL (ix 6) 21 .|.
     shiftL (ix 7) 14 .|.
     shiftL (ix 8)  7 .|.
            (ix 9)
   where
-    ix n = fromIntegral (BS.unsafeIndex bs n)
+    ix n = fromIntegral $ BS.unsafeIndex bs n
+
+isID3TagPresent :: ByteString -> Bool
+isID3TagPresent bs =
+    ix 0 == 0x49 && -- I
+    ix 1 == 0x44 && -- D
+    ix 2 == 0x33    -- 3
+  where
+    ix :: Int -> Int
+    ix n = fromIntegral $ BS.unsafeIndex bs n
 
 skipBytes :: Monad m => Int -> Producer ByteString m r -> m (ByteString, Int, Producer ByteString m r)
 skipBytes n p = go (return ()) p n

@@ -51,8 +51,7 @@ streamAudio connManager url _ respond = do
             let headers = [("Content-Type", "audio/mpeg")]
             respond $ Wai.responseStream status200 headers $ \write flush -> do
                 runSafeT $ runEffect $ do
-                    (mph, chunks) <- lift $ Mpeg.headerFromPipe (responseBody res)
-                    liftIO $ putStrLn ("Header: " ++ show mph)
+                    (mph, chunks) <- lift $ Mpeg.findHeader (responseBody res)
                     for chunks $ \chunk -> liftIO $ do
                         write $ BB.byteString chunk
                         flush
