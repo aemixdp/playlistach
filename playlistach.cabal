@@ -18,6 +18,7 @@ executable playlistach
   -- other-extensions:
   build-depends:       base >=4.8 && <4.9,
                        array,
+                       unordered-containers,
                        mmorph,
                        mtl,
                        VKHS >=0.5 && <0.6,
@@ -36,6 +37,7 @@ executable playlistach
                        warp,
                        warp-tls,
                        servant,
+                       servant-client,
                        servant-server,
                        string-conversions
   hs-source-dirs:      src

@@ -27,6 +27,7 @@ import           Servant.API                   as Servant
 
 import qualified Playlistach.Mpeg as Mpeg
 import qualified Playlistach.Vk   as Vk
+import qualified Playlistach.Soundcloud
 import           Playlistach.ServantExt
 
 requestPipe :: Manager -> Request -> IO (Response (Producer ByteString (SafeT IO) ()))
@@ -58,15 +59,17 @@ streamAudio connManager url _ respond = do
         _ -> respond $
             Wai.responseBuilder status404 [] mempty
 
-data AuthConf = AuthConf
-  { vkLogin    :: String
-  , vkPassword :: String }
+data Conf = Conf
+    { vkLogin    :: String
+    , vkPassword :: String
+    , scCliendId :: String }
 
-readAuthConf :: FilePath -> IO AuthConf
-readAuthConf path =
+readConf :: FilePath -> IO Conf
+readConf path =
     withFile path ReadMode $ \h -> do
-        AuthConf <$> hGetLine h
-                 <*> hGetLine h
+        Conf <$> hGetLine h
+             <*> hGetLine h
+             <*> hGetLine h
 
 tlsSettings :: Warp.TLSSettings
 tlsSettings = Warp.defaultTlsSettings
@@ -76,20 +79,20 @@ tlsSettings = Warp.defaultTlsSettings
 type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [Vk.Song]
       :<|> "api" :> "audio"  :> RequiredParam "url"   String :> Raw
 
-server :: AuthConf -> Manager -> Server API
-server AuthConf{..} connManager =
+server :: Conf -> Manager -> Server API
+server Conf{..} connManager =
     api_search :<|> api_audio
   where
     api_search query = liftIO $ Vk.exec vkLogin vkPassword (Vk.searchAudio query)
     api_audio url = streamAudio connManager url
 
 main = do
-    authConf <- readAuthConf "./auth.conf"
+    conf <- readConf "./app.conf"
     redisConn <- Redis.connect Redis.defaultConnectInfo
     withManager defaultManagerSettings $ \connMgr -> do
         Warp.runTLS tlsSettings Warp.defaultSettings $
             Wai.staticPolicy (Wai.addBase "./web") $
-                serve api (server authConf connMgr)
+                serve api (server conf connMgr)
   where
     api :: Servant.Proxy API
     api = Servant.Proxy

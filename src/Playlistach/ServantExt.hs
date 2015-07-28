@@ -17,6 +17,8 @@ import Network.Wai (rawQueryString)
 import Servant
 import Servant.Server
 import Servant.Server.Internal
+import Servant.Client
+import Servant.Common.Req
 
 data RequiredParam (sym :: Symbol) a
   deriving (Typeable)
@@ -35,3 +37,15 @@ instance (KnownSymbol sym, FromText a, HasServer sublayout) =>
         queryText = parseQueryText $ rawQueryString request
         paramName = cs $ symbolVal (Proxy :: Proxy sym)
         proxy = Proxy :: Proxy sublayout
+
+instance (KnownSymbol sym, ToText a, HasClient sublayout) =>
+    HasClient (RequiredParam sym a :> sublayout)
+  where
+    type Client (RequiredParam sym a :> sublayout) =
+        a -> Client sublayout
+
+    clientWithRoute Proxy req baseurl param =
+        clientWithRoute (Proxy :: Proxy sublayout) req' baseurl
+      where
+        req' = appendToQueryString pname (Just (toText param)) req
+        pname = cs $ symbolVal (Proxy :: Proxy sym)
