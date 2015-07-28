@@ -18,7 +18,7 @@ executable playlistach
   -- other-extensions:
   build-depends:       base >=4.8 && <4.9,
                        array,
-                       unordered-containers,
+                       either,
                        mmorph,
                        mtl,
                        VKHS >=0.5 && <0.6,

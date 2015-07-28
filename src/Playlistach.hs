@@ -25,6 +25,7 @@ import qualified Database.Redis                as Redis
 import           Servant
 import           Servant.API                   as Servant
 
+import           Playlistach.Types
 import qualified Playlistach.Mpeg as Mpeg
 import qualified Playlistach.Vk   as Vk
 import qualified Playlistach.Soundcloud
@@ -76,14 +77,14 @@ tlsSettings = Warp.defaultTlsSettings
     { Warp.certFile = "cert.pem"
     , Warp.keyFile  = "key.pem" }
 
-type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [Vk.Song]
+type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [Track]
       :<|> "api" :> "audio"  :> RequiredParam "url"   String :> Raw
 
 server :: Conf -> Manager -> Server API
 server Conf{..} connManager =
     api_search :<|> api_audio
   where
-    api_search query = liftIO $ Vk.exec vkLogin vkPassword (Vk.searchAudio query)
+    api_search query = liftIO $ Vk.exec vkLogin vkPassword (Vk.searchTracks query)
     api_audio url = streamAudio connManager url
 
 main = do
