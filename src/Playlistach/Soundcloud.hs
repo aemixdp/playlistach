@@ -32,11 +32,11 @@ instance FromJSON ScTrack where
 
 type ClientIdParam = RequiredParam "client_id" String
 
-type API r = "tracks" :> RequiredParam "q" String :> ClientIdParam :> Get '[JSON] [ScTrack]
-        :<|> "tracks" :> Capture "id" String :> "stream" :> ClientIdParam :> RawPipe r
+type API = "tracks" :> RequiredParam "q" String :> ClientIdParam :> Get '[JSON] [ScTrack]
+      :<|> "tracks" :> Capture "id" String :> "stream" :> ClientIdParam :> RawPipe
 
 _searchTracks :<|> _withAudioStream =
-    client (Proxy :: Proxy (API r)) $
+    client (Proxy :: Proxy API) $
         BaseUrl Https "api.soundcloud.com" 8081
 
 searchTracks :: String -> String -> EitherT ServantError IO [Track]
@@ -51,4 +51,4 @@ searchTracks query clientId = map toTrack <$> _searchTracks query clientId
 
 withAudioStream :: Track -> String -> (ProducerResponse -> IO r) -> EitherT ServantError IO r
 withAudioStream Track{..} clientId streamer =
-    _withAudioStream trackId clientId methodGet streamer
+    runRawPipe (_withAudioStream trackId clientId methodGet) streamer

@@ -6,8 +6,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns        #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
 
-module Playlistach.ServantExt (RequiredParam, RawPipe) where
+module Playlistach.ServantExt (RequiredParam, RawPipe(..)) where
 
 import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 import Data.Typeable (Typeable)
@@ -62,27 +63,28 @@ instance (KnownSymbol sym, ToText a, HasClient sublayout) =>
         req' = appendToQueryString pname (Just (toText param)) req
         pname = cs $ symbolVal (Proxy :: Proxy sym)
 
-data RawPipe r
+newtype RawPipe = RawPipe
+    { runRawPipe :: forall r . (ProducerResponse -> IO r) -> EitherT ServantError IO r }
   deriving (Typeable)
 
-instance HasClient (RawPipe r) where
-    type Client (RawPipe r) = Method -> (ProducerResponse -> IO r) -> EitherT ServantError IO r
+instance HasClient RawPipe where
+    type Client RawPipe = Method -> RawPipe
 
-    clientWithRoute Proxy req baseurl httpMethod streamer =
-        performStreamingRequest httpMethod req (const True) baseurl streamer
+    clientWithRoute Proxy req baseurl httpMethod =
+        performStreamingRequest httpMethod req (const True) baseurl
 
-performStreamingRequest :: Method -> Req -> (Int -> Bool) -> BaseUrl
-                        -> (ProducerResponse -> IO r) -> EitherT ServantError IO r
-performStreamingRequest reqMethod req isWantedStatus baseUrl streamer = do
-    partialRequest <- liftIO $ reqToRequest req baseUrl
-    let request = partialRequest { HTTP.method = reqMethod, checkStatus = \_ _ _ -> Nothing }
-    EitherT $ __withGlobalManager $ \manager -> catchConnectionError $
-        withHTTP request manager $ \response -> runEitherT $ do
-            ct <- extractContentType response
-            let status = HTTP.responseStatus response
-            unless (isWantedStatus (statusCode status)) $
-                left $ FailureResponse status ct mempty
-            liftIO $ streamer response
+performStreamingRequest :: Method -> Req -> (Int -> Bool) -> BaseUrl -> RawPipe
+performStreamingRequest reqMethod req isWantedStatus baseUrl =
+    RawPipe $ \streamer -> do
+        partialRequest <- liftIO $ reqToRequest req baseUrl
+        let request = partialRequest { HTTP.method = reqMethod, checkStatus = \_ _ _ -> Nothing }
+        EitherT $ __withGlobalManager $ \manager -> catchConnectionError $
+            withHTTP request manager $ \response -> runEitherT $ do
+                ct <- extractContentType response
+                let status = HTTP.responseStatus response
+                unless (isWantedStatus (statusCode status)) $
+                    left $ FailureResponse status ct mempty
+                liftIO $ streamer response
   where
     extractContentType response =
         case lookup "Content-Type" (HTTP.responseHeaders response) of
