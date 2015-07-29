@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Playlistach.Soundcloud (searchTracks, streamTrack) where
+module Playlistach.Soundcloud (searchTracks, withAudioStream) where
 
 import Data.Aeson
 import Control.Monad (mzero)
@@ -12,6 +12,7 @@ import Control.Monad.Trans.Either (EitherT)
 import Servant
 import Servant.Client
 import Servant.Common.Req (ServantError)
+import Network.HTTP.Types.Method (methodGet)
 import Playlistach.ServantExt
 import Playlistach.Types
 
@@ -31,15 +32,15 @@ instance FromJSON ScTrack where
 
 type ClientIdParam = RequiredParam "client_id" String
 
-type API = "tracks" :> RequiredParam "q" String :> ClientIdParam :> Get '[JSON] [ScTrack]
-      :<|> "tracks" :> Capture "id" String :> "stream" :> ClientIdParam :> Raw
+type API r = "tracks" :> RequiredParam "q" String :> ClientIdParam :> Get '[JSON] [ScTrack]
+        :<|> "tracks" :> Capture "id" String :> "stream" :> ClientIdParam :> RawPipe r
 
-_searchTracks :<|> _streamTrack =
-    client (Proxy :: Proxy API) $
+_searchTracks :<|> _withAudioStream =
+    client (Proxy :: Proxy (API r)) $
         BaseUrl Https "api.soundcloud.com" 8081
 
 searchTracks :: String -> String -> EitherT ServantError IO [Track]
-searchTracks q cid = map toTrack <$> _searchTracks q cid
+searchTracks query clientId = map toTrack <$> _searchTracks query clientId
   where
     toTrack ScTrack{..} = Track
         { trackId       = scTrackId
@@ -48,4 +49,6 @@ searchTracks q cid = map toTrack <$> _searchTracks q cid
         , trackUrl      = scTrackUrl
         , trackOrigin   = SC }
 
-streamTrack tid cid = _streamTrack tid cid
+withAudioStream :: Track -> String -> (ProducerResponse -> IO r) -> EitherT ServantError IO r
+withAudioStream Track{..} clientId streamer =
+    _withAudioStream trackId clientId methodGet streamer

@@ -2,12 +2,14 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Playlistach.Vk (searchTracks, exec) where
+module Playlistach.Vk (searchTracks, withAudioStream, exec) where
 
-import qualified Web.VKHS.Types     as Vk
-import qualified Web.VKHS.Login     as Vk
-import qualified Web.VKHS.API       as Vk
-import qualified Web.VKHS.API.Types as Vk
+import qualified Web.VKHS.Types      as Vk
+import qualified Web.VKHS.Login      as Vk
+import qualified Web.VKHS.API        as Vk
+import qualified Web.VKHS.API.Types  as Vk
+import qualified Pipes.HTTP          as Pipes
+import qualified Network.HTTP.Client as HTTP
 import           Playlistach.Types
 
 vk :: String -> String -> (Vk.Env Vk.CallEnv -> IO a) -> IO a
@@ -41,3 +43,8 @@ searchTracks query env =
               , ("search_own", "1")
               , ("offset", "0")
               , ("count", "10") ]
+
+withAudioStream :: Track -> HTTP.Manager -> (ProducerResponse -> IO r) -> IO r
+withAudioStream Track{..} connManager streamer = do
+    request <- HTTP.parseUrl trackUrl
+    Pipes.withHTTP request connManager streamer

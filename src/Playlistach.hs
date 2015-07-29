@@ -31,35 +31,6 @@ import qualified Playlistach.Vk   as Vk
 import qualified Playlistach.Soundcloud
 import           Playlistach.ServantExt
 
-requestPipe :: Manager -> Request -> IO (Response (Producer ByteString (SafeT IO) ()))
-requestPipe mgr req = do
-    res <- responseOpen req mgr
-    return $ res { responseBody = bodyProducer res }
-  where
-    bodyProducer res = do
-        register $ liftIO $ responseClose res
-        consumeResponseBody $ brRead $ responseBody res
-    consumeResponseBody readChunk = loop
-      where
-        loop = liftIO readChunk >>= \chunk ->
-            unless (BS.null chunk) $ yield chunk >> loop
-
-streamAudio :: Manager -> String -> Wai.Request -> (Wai.Response -> IO r) -> IO r
-streamAudio connManager url _ respond = do
-    req <- parseUrl url
-    res <- requestPipe connManager req
-    case statusCode (responseStatus res) of
-        200 -> do
-            let headers = [("Content-Type", "audio/mpeg")]
-            respond $ Wai.responseStream status200 headers $ \write flush -> do
-                runSafeT $ runEffect $ do
-                    (mph, chunks) <- lift $ Mpeg.findHeader (responseBody res)
-                    for chunks $ \chunk -> liftIO $ do
-                        write $ BB.byteString chunk
-                        flush
-        _ -> respond $
-            Wai.responseBuilder status404 [] mempty
-
 data Conf = Conf
     { vkLogin    :: String
     , vkPassword :: String
@@ -78,14 +49,14 @@ tlsSettings = Warp.defaultTlsSettings
     , Warp.keyFile  = "key.pem" }
 
 type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [Track]
-      :<|> "api" :> "audio"  :> RequiredParam "url"   String :> Raw
+      :<|> "api" :> "audio"  :> RequiredParam "id"    String :> Raw
 
 server :: Conf -> Manager -> Server API
 server Conf{..} connManager =
     api_search :<|> api_audio
   where
     api_search query = liftIO $ Vk.exec vkLogin vkPassword (Vk.searchTracks query)
-    api_audio url = streamAudio connManager url
+    api_audio url = undefined
 
 main = do
     conf <- readConf "./app.conf"

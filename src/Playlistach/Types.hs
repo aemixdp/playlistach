@@ -3,7 +3,10 @@
 module Playlistach.Types where
 
 import GHC.Generics (Generic)
+import Data.ByteString (ByteString)
 import Data.Aeson (ToJSON)
+import Network.HTTP.Client (Response)
+import Pipes (Producer)
 
 data Origin =
     VK | SC
@@ -21,3 +24,5 @@ data Track = Track
 
 instance ToJSON Origin
 instance ToJSON Track
+
+type ProducerResponse = Response (Producer ByteString IO ())
