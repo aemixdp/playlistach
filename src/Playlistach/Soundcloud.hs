@@ -6,9 +6,10 @@
 
 module Playlistach.Soundcloud (searchTracks, withAudioStream) where
 
+import Data.Coerce
 import Data.Aeson
 import Control.Monad (mzero)
-import Control.Monad.Trans.Either (EitherT)
+import Control.Monad.Trans.Either (EitherT(..))
 import Servant
 import Servant.Client
 import Servant.Common.Req (ServantError)
@@ -16,18 +17,15 @@ import Network.HTTP.Types.Method (methodGet)
 import Playlistach.ServantExt
 import Playlistach.Types
 
-data ScTrack = ScTrack
-    { scTrackId       :: String
-    , scTrackTitle    :: String
-    , scTrackDuration :: Int
-    , scTrackUrl      :: String }
+newtype ScTrack = ScTrack Track
 
 instance FromJSON ScTrack where
-    parseJSON (Object v) =
-        ScTrack <$> v .: "id"
-                <*> v .: "title"
-                <*> v .: "duration"
-                <*> v .: "permalink_url"
+    parseJSON (Object v) = coerce $
+        Track <$> v .: "id"
+              <*> v .: "title"
+              <*> v .: "duration"
+              <*> v .: "permalink_url"
+              <*> pure SC
     parseJSON _  = mzero
 
 type ClientIdParam = RequiredParam "client_id" String
@@ -40,14 +38,7 @@ _searchTracks :<|> _withAudioStream =
         BaseUrl Https "api.soundcloud.com" 8081
 
 searchTracks :: String -> String -> EitherT ServantError IO [Track]
-searchTracks query clientId = map toTrack <$> _searchTracks query clientId
-  where
-    toTrack ScTrack{..} = Track
-        { trackId       = scTrackId
-        , trackTitle    = scTrackTitle
-        , trackDuration = scTrackDuration
-        , trackUrl      = scTrackUrl
-        , trackOrigin   = SC }
+searchTracks query clientId = coerce $ _searchTracks query clientId
 
 withAudioStream :: Track -> String -> (ProducerResponse -> IO r) -> EitherT ServantError IO r
 withAudioStream Track{..} clientId streamer =
