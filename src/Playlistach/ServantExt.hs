@@ -31,7 +31,7 @@ import Servant.Client
 import Servant.Common.Req
 import Pipes (Producer)
 import Pipes.HTTP hiding (Proxy)
-import Playlistach.Types
+import Playlistach.Common
 
 data RequiredParam (sym :: Symbol) a
   deriving (Typeable)

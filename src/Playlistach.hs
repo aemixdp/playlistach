@@ -25,7 +25,7 @@ import qualified Database.Redis                as Redis
 import           Servant
 import           Servant.API                   as Servant
 
-import           Playlistach.Types
+import           Playlistach.Common
 import qualified Playlistach.Mpeg as Mpeg
 import qualified Playlistach.Vk   as Vk
 import qualified Playlistach.Soundcloud

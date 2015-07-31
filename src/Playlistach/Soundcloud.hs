@@ -1,8 +1,6 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE TypeOperators     #-}
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
 
 module Playlistach.Soundcloud (searchTracks, withAudioStream) where
 
@@ -14,8 +12,10 @@ import Servant
 import Servant.Client
 import Servant.Common.Req (ServantError)
 import Network.HTTP.Types.Method (methodGet)
+import Playlistach.Common
 import Playlistach.ServantExt
-import Playlistach.Types
+import Playlistach.Model.Track  as Track
+import Playlistach.Model.Origin as Origin
 
 newtype ScTrack = ScTrack Track
 
@@ -25,7 +25,7 @@ instance FromJSON ScTrack where
               <*> v .: "title"
               <*> v .: "duration"
               <*> v .: "permalink_url"
-              <*> pure SC
+              <*> pure Origin.SC
     parseJSON _  = mzero
 
 type ClientIdParam = RequiredParam "client_id" String
@@ -41,5 +41,5 @@ searchTracks :: String -> String -> EitherT ServantError IO [Track]
 searchTracks query clientId = coerce $ _searchTracks query clientId
 
 withAudioStream :: Track -> String -> (ProducerResponse -> IO r) -> EitherT ServantError IO r
-withAudioStream Track{..} clientId streamer =
-    runRawPipe (_withAudioStream trackId clientId methodGet) streamer
+withAudioStream track clientId streamer =
+    runRawPipe (_withAudioStream (Track.tid track) clientId methodGet) streamer

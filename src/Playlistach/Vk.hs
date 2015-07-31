@@ -1,6 +1,4 @@
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Playlistach.Vk (searchTracks, withAudioStream, exec) where
 
@@ -8,9 +6,11 @@ import qualified Web.VKHS.Types      as Vk
 import qualified Web.VKHS.Login      as Vk
 import qualified Web.VKHS.API        as Vk
 import qualified Web.VKHS.API.Types  as Vk
-import qualified Pipes.HTTP          as Pipes
 import qualified Network.HTTP.Client as HTTP
-import           Playlistach.Types
+import qualified Pipes.HTTP          as Pipes
+import           Playlistach.Common
+import           Playlistach.Model.Track  as Track
+import           Playlistach.Model.Origin as Origin
 
 vk :: String -> String -> (Vk.Env Vk.CallEnv -> IO a) -> IO a
 vk user pass cmd = do
@@ -28,12 +28,12 @@ searchTracks query env =
   where
     entries (Vk.Response (Vk.SL _ es)) = map toTrack es
 
-    toTrack Vk.MR{..} = Track
-        { trackId       = show owner_id ++ "_" ++ show aid
-        , trackTitle    = artist ++ " - " ++ title
-        , trackDuration = duration
-        , trackUrl      = url
-        , trackOrigin   = VK }
+    toTrack r = Track
+        { tid      = show (Vk.owner_id r) ++ "_" ++ show (Vk.aid r)
+        , title    = Vk.artist r ++ " - " ++ Vk.title r
+        , duration = Vk.duration r
+        , url      = Vk.url r
+        , origin   = Origin.VK }
 
     options = [ ("q", query)
               , ("auto_complete", "1")
@@ -45,6 +45,6 @@ searchTracks query env =
               , ("count", "10") ]
 
 withAudioStream :: Track -> HTTP.Manager -> (ProducerResponse -> IO r) -> IO r
-withAudioStream Track{..} connManager streamer = do
-    request <- HTTP.parseUrl trackUrl
+withAudioStream track connManager streamer = do
+    request <- HTTP.parseUrl (Track.url track)
     Pipes.withHTTP request connManager streamer
