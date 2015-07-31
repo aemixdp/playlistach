@@ -1,0 +1,51 @@
+<!doctype html>
+<html ng-app="playlistach">
+    <head>
+        <meta charset="utf-8" />
+        <title>Playlistach</title>
+        <link rel="stylesheet" href="styles.css" />
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular.min.js"></script>
+        <script src="app.js"></script>
+    </head>
+<body ng-controller="MainCtrl">
+    <header>
+        <h2>Playlistach</h2>
+    </header>
+    <nav>
+        <input type="text"
+               size="34"
+               placeholder="Burial - Near Dark"
+               ng-model="searchQuery">
+        <button ng-click="search(searchQuery)">
+            Search
+        </button>
+    </nav>
+    <section id="search-results">
+        <header>
+            Search results:
+        </header>
+        <div ng-repeat="track in results[currentPage]">
+            <span ng-switch="track.origin">
+                <i ng-switch-when="VK" class="fa fa-vk"></i>
+                <i ng-switch-when="SC" class="fa fa-soundcloud"></i>
+            </span>
+            {{track.title}}
+            <i class="fa fa-pause"
+               ng-show="track.id == currentPlayingTrack"
+               ng-click="pause(track)">
+            </i>
+            <i class="fa fa-play"
+               ng-show="track.id != currentPlayingTrack"
+               ng-click="play(track)">
+            </i>
+        </div>
+    </section>
+    <section id="playlist">
+        <header>
+            Playlist:
+        </header>
+    </section>
+</body>
+</html>
