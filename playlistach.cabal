@@ -42,5 +42,5 @@ executable playlistach
                        servant-client,
                        servant-server,
                        string-conversions
-  hs-source-dirs:      src
+  hs-source-dirs:      backend
   default-language:    Haskell2010
