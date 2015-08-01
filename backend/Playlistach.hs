@@ -63,7 +63,7 @@ main = do
     redisConn <- Redis.connect Redis.defaultConnectInfo
     withManager defaultManagerSettings $ \connMgr -> do
         Warp.runTLS tlsSettings Warp.defaultSettings $
-            Wai.staticPolicy (Wai.addBase "./web") $
+            Wai.staticPolicy (Wai.addBase "./frontend") $
                 serve api (server conf connMgr)
   where
     api :: Servant.Proxy API
