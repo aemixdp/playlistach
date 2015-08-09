@@ -18,6 +18,7 @@ import Control.Monad
 import Control.Monad.Trans (liftIO)
 import Control.Monad.Trans.Either
 import Control.Monad.Catch (catch)
+import Control.Exception (Exception)
 import Network.HTTP.Client       as HTTP hiding (Proxy)
 import Network.HTTP.Types        as HTTP
 import Network.HTTP.Types.Status as HTTP
@@ -32,6 +33,8 @@ import Servant.Common.Req
 import Pipes (Producer)
 import Pipes.HTTP hiding (Proxy)
 import Playlistach.Common
+
+instance Exception ServantError
 
 data RequiredParam (sym :: Symbol) a
   deriving (Typeable)

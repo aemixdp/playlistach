@@ -23,6 +23,8 @@ executable playlistach
                        mmorph,
                        mtl,
                        VKHS >=0.5 && <0.6,
+                       binary,
+                       string-conversions,
                        bytestring,
                        text,
                        aeson,
@@ -41,6 +43,8 @@ executable playlistach
                        servant,
                        servant-client,
                        servant-server,
-                       string-conversions
+                       postgresql-simple,
+                       opaleye,
+                       product-profunctors
   hs-source-dirs:      backend
   default-language:    Haskell2010

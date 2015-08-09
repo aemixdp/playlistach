@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Playlistach.Vk (searchTracks, withAudioStream, exec) where
+module Playlistach.Vk (searchTracks) where
 
 import qualified Web.VKHS.Types      as Vk
 import qualified Web.VKHS.Login      as Vk
@@ -12,29 +12,25 @@ import           Playlistach.Common
 import           Playlistach.Model.Track  as Track
 import           Playlistach.Model.Origin as Origin
 
-vk :: String -> String -> (Vk.Env Vk.CallEnv -> IO a) -> IO a
-vk user pass cmd = do
+vk :: String -> String -> (Vk.Env Vk.CallEnv -> IO (Either Vk.APIError r)) -> IO r
+vk user pass cmd = either (error . show) id <$> do
     let loginEnv = Vk.env "111111" user pass [Vk.Audio]
     Vk.login loginEnv >>= \case
         Left e              -> error e
         Right (token, _, _) -> cmd (Vk.callEnv loginEnv token)
 
-exec :: Show a => String -> String -> (Vk.Env Vk.CallEnv -> IO (Either a b)) -> IO b
-exec user pass cmd = either (error . show) id <$> vk user pass cmd
-
-searchTracks :: String -> Vk.Env Vk.CallEnv -> IO (Either Vk.APIError [Track])
-searchTracks query env =
+searchTracks :: String -> String -> String -> IO [Track]
+searchTracks user pass query = vk user pass $ \env ->
     fmap entries <$> Vk.api' env "audio.search" options
   where
     entries (Vk.Response (Vk.SL _ es)) = map toTrack es
-
     toTrack r = Track
-        { tid      = show (Vk.owner_id r) ++ "_" ++ show (Vk.aid r)
-        , title    = Vk.artist r ++ " - " ++ Vk.title r
-        , duration = Vk.duration r
-        , url      = Vk.url r
-        , origin   = Origin.VK }
-
+        { externalId   = show (Vk.owner_id r) ++ "_" ++ show (Vk.aid r)
+        , title        = Vk.artist r ++ " - " ++ Vk.title r
+        , duration     = Vk.duration r
+        , streamUrl    = Just $ Vk.url r
+        , permalinkUrl = Nothing
+        , origin       = Origin.VK }
     options = [ ("q", query)
               , ("auto_complete", "1")
               , ("lyrics", "0")
@@ -43,8 +39,3 @@ searchTracks query env =
               , ("search_own", "1")
               , ("offset", "0")
               , ("count", "10") ]
-
-withAudioStream :: Track -> HTTP.Manager -> (ProducerResponse -> IO r) -> IO r
-withAudioStream track connManager streamer = do
-    request <- HTTP.parseUrl (Track.url track)
-    Pipes.withHTTP request connManager streamer
