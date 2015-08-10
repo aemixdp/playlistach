@@ -28,6 +28,7 @@ executable playlistach
                        bytestring,
                        text,
                        aeson,
+                       formatting,
                        http-client,
                        http-types,
                        http-media,
@@ -45,6 +46,7 @@ executable playlistach
                        servant-server,
                        postgresql-simple,
                        opaleye,
+                       hedis,
                        product-profunctors
   hs-source-dirs:      backend
   default-language:    Haskell2010

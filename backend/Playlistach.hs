@@ -25,37 +25,27 @@ import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Network.Wai.Handler.WarpTLS   as Warp
 import           Servant
 import           Servant.API                   as Servant
-import           Playlistach.Util.List  as L
-import           Playlistach.Model.Track
-import qualified Playlistach.Mpeg       as Mpeg
-import qualified Playlistach.Vk         as Vk
-import qualified Playlistach.Soundcloud as Sc
+import           Database.Redis                as Redis
+import           Playlistach.Util.List         as L
+import           Playlistach.Model.Track       as Track
+import qualified Playlistach.Mpeg              as Mpeg
+import qualified Playlistach.Vk                as Vk
+import qualified Playlistach.Soundcloud        as Sc
 import           Playlistach.ServantExt
 
-data Conf = Conf
-    { vkLogin    :: String
-    , vkPassword :: String
-    , scCliendId :: String }
-
-readConf :: FilePath -> IO Conf
-readConf path =
-    withFile path ReadMode $ \h -> do
-        Conf <$> hGetLine h
-             <*> hGetLine h
-             <*> hGetLine h
-
-tlsSettings :: Warp.TLSSettings
-tlsSettings = Warp.defaultTlsSettings
-    { Warp.certFile = "cert.pem"
-    , Warp.keyFile  = "key.pem" }
-
-search :: Manager -> Conf -> String -> EitherT ServantErr IO [Track]
-search connManager Conf{..} query = liftIO $ do
+search :: HTTP.Manager -> Redis.Connection -> Conf -> String -> EitherT ServantErr IO [Track]
+search connManager redisConn Conf{..} query = liftIO $ do
     vkResults <- liftIO $ Vk.searchTracks vkLogin vkPassword query
     scResults <- Sc.searchTracks scCliendId query
+    let getIdAndStreamUrl getUrl track = (Track.externalId track, getUrl track)
+    let urlMappings = map (getIdAndStreamUrl Vk.getStreamUrl) vkResults
+                   ++ map (getIdAndStreamUrl (Sc.getStreamUrl scCliendId)) scResults
+    runRedis redisConn $ do
+        forM_ urlMappings $ \(id, url) ->
+            Redis.setex (BS.pack id) urlCacheExpireSeconds (BS.pack url)
     return $ L.proportionate [vkResults, scResults]
 
-streamUrl :: Manager -> String -> (Wai.Response -> IO r) -> IO r
+streamUrl :: HTTP.Manager -> String -> (Wai.Response -> IO r) -> IO r
 streamUrl connManager url respond = do
     req <- parseUrl url
     Pipes.withHTTP req connManager $ \res -> do
@@ -72,27 +62,48 @@ streamUrl connManager url respond = do
             _ -> respond $
                 Wai.responseBuilder status404 [] mempty
 
-streamTemporary :: Manager -> String -> (Wai.Response -> IO r) -> IO r
+streamTemporary :: HTTP.Manager -> String -> (Wai.Response -> IO r) -> IO r
 streamTemporary connManager id respond = undefined
 
 type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [ClientTrack]
       :<|> "api" :> "stream"           :> RequiredParam "id" Int    :> Raw
       :<|> "api" :> "stream" :> "temp" :> RequiredParam "id" String :> Raw
 
-server :: Manager -> Conf -> Server API
-server connManager conf@Conf{..} =
+server :: HTTP.Manager -> Redis.Connection -> Conf -> Server API
+server connManager redisConn conf@Conf{..} =
     api_search :<|> api_stream :<|> api_stream_temp
   where
-    api_search query = coerce $ search connManager conf query
+    api_search query = coerce $ search connManager redisConn conf query
     api_stream id _ respond = undefined
     api_stream_temp id _ respond = streamTemporary connManager id respond
+
+data Conf = Conf
+    { vkLogin               :: String
+    , vkPassword            :: String
+    , scCliendId            :: String
+    , urlCacheExpireSeconds :: Integer }
+
+readConf :: FilePath -> IO Conf
+readConf path =
+    withFile path ReadMode $ \h -> do
+        Conf <$> hGetLine h
+             <*> hGetLine h
+             <*> hGetLine h
+             <*> fmap read (hGetLine h)
+
+tlsSettings :: Warp.TLSSettings
+tlsSettings = Warp.defaultTlsSettings
+    { Warp.certFile = "cert.pem"
+    , Warp.keyFile  = "key.pem" }
+
+redisConnInfo :: Redis.ConnectInfo
+redisConnInfo = Redis.defaultConnectInfo
 
 main = do
     conf <- readConf "./app.conf"
     connManager <- newManager defaultManagerSettings
+    redisConn <- Redis.connect redisConnInfo
     Warp.runTLS tlsSettings Warp.defaultSettings $
         Wai.staticPolicy (Wai.addBase "./frontend") $
-            serve api (server connManager conf)
-  where
-    api :: Servant.Proxy API
-    api = Servant.Proxy
+            serve (Servant.Proxy :: Servant.Proxy API) $
+                server connManager redisConn conf

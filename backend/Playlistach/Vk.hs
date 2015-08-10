@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Playlistach.Vk (searchTracks) where
+module Playlistach.Vk (searchTracks, getStreamUrl) where
 
 import qualified Web.VKHS.Types      as Vk
 import qualified Web.VKHS.Login      as Vk
@@ -8,7 +8,6 @@ import qualified Web.VKHS.API        as Vk
 import qualified Web.VKHS.API.Types  as Vk
 import qualified Network.HTTP.Client as HTTP
 import qualified Pipes.HTTP          as Pipes
-import           Playlistach.Common
 import           Playlistach.Model.Track  as Track
 import           Playlistach.Model.Origin as Origin
 
@@ -39,3 +38,6 @@ searchTracks user pass query = vk user pass $ \env ->
               , ("search_own", "1")
               , ("offset", "0")
               , ("count", "10") ]
+
+getStreamUrl :: Track -> String
+getStreamUrl = maybe (error "Vk track without streamUrl!") id . Track.streamUrl
