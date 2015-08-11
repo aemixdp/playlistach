@@ -83,6 +83,14 @@ server connManager redisConn vkAccessToken conf@Conf{..} =
     api_stream id _ respond = undefined
     api_stream_temp id _ respond = streamTemporary connManager redisConn id respond
 
+handleRedirects :: Wai.Middleware
+handleRedirects app request respond = app request' respond
+  where
+    request'  = request { Wai.pathInfo = pathInfo' }
+    pathInfo' = case Wai.pathInfo request of
+        [] -> [ "app.html" ]
+        pi -> pi
+
 data Conf = Conf
     { vkClientId            :: String
     , vkLogin               :: String
@@ -113,6 +121,7 @@ main = do
     redisConn     <- Redis.connect redisConnInfo
     vkAccessToken <- Vk.login vkClientId vkLogin vkPassword
     Warp.runTLS tlsSettings Warp.defaultSettings $
+        handleRedirects $
         Wai.staticPolicy (Wai.addBase "./frontend") $
             serve (Servant.Proxy :: Servant.Proxy API) $
-                server connManager redisConn vkAccessToken conf
+            server connManager redisConn vkAccessToken conf
