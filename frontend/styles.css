@@ -2,8 +2,12 @@ body {
   text-align: center;
 }
 
-button:hover {
+button:hover, i:hover {
   cursor: pointer;
+}
+
+.orange, i:hover {
+    color: #FF6600;
 }
 
 #search-results {
