@@ -27,7 +27,8 @@ import           Servant
 import           Servant.API                   as Servant
 import           Database.Redis                as Redis
 import           Playlistach.Util.List         as L
-import           Playlistach.Model.Track       as Track
+import           Playlistach.Model.Track (Track, ClientTrack)
+import qualified Playlistach.Model.Track       as Track
 import qualified Playlistach.Mpeg              as Mpeg
 import qualified Playlistach.Vk                as Vk
 import qualified Playlistach.Soundcloud        as Sc
@@ -62,8 +63,12 @@ streamUrl connManager url respond = do
             _ -> respond $
                 Wai.responseBuilder status404 [] mempty
 
-streamTemporary :: HTTP.Manager -> String -> (Wai.Response -> IO r) -> IO r
-streamTemporary connManager id respond = undefined
+streamTemporary :: HTTP.Manager -> Redis.Connection -> String -> (Wai.Response -> IO r) -> IO r
+streamTemporary connManager redisConn id respond = do
+    Right mbUrl <- runRedis redisConn $ Redis.get (BS.pack id)
+    case mbUrl of
+        Just url -> streamUrl connManager (BS.unpack url) respond
+        Nothing  -> error "Cached stream url expired!"
 
 type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [ClientTrack]
       :<|> "api" :> "stream"           :> RequiredParam "id" Int    :> Raw
@@ -75,7 +80,7 @@ server connManager redisConn conf@Conf{..} =
   where
     api_search query = coerce $ search connManager redisConn conf query
     api_stream id _ respond = undefined
-    api_stream_temp id _ respond = streamTemporary connManager id respond
+    api_stream_temp id _ respond = streamTemporary connManager redisConn id respond
 
 data Conf = Conf
     { vkLogin               :: String
