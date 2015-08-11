@@ -31,9 +31,9 @@ instance FromJSON ScTrack where
         let toScTrack :: Track -> ScTrack
             toScTrack = coerce
         return $ toScTrack $ T.Track
-            { T.externalId   = id
+            { T.externalId   = show (id :: Int)
             , T.title        = title
-            , T.duration     = duration
+            , T.duration     = duration `div` 1000
             , T.streamUrl    = Nothing
             , T.permalinkUrl = Just url
             , T.origin       = Origin.SC }
@@ -41,7 +41,7 @@ instance FromJSON ScTrack where
 
 type API = "tracks" :> RequiredParam "q" String :> RequiredParam "client_id" String :> Get '[JSON] [ScTrack]
 
-_searchTracks = client (Proxy :: Proxy API) $ BaseUrl Https "api.soundcloud.com" 8081
+_searchTracks = client (Proxy :: Proxy API) $ BaseUrl Https "api.soundcloud.com" 443
 
 runCli :: EitherT ServantCli.ServantError IO r -> IO r
 runCli = eitherT throwIO return
