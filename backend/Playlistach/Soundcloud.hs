@@ -7,12 +7,11 @@ module Playlistach.Soundcloud (searchTracks, getStreamUrl) where
 import           Data.Coerce
 import           Data.Aeson
 import           Control.Monad (mzero)
-import           Control.Monad.Trans.Either (EitherT(..), eitherT)
+import           Control.Monad.Trans.Either (EitherT(..))
 import           Control.Exception (throwIO)
 import           Network.HTTP.Types.Method (methodGet)
 import           Servant
 import           Servant.Client
-import qualified Servant.Common.Req as ServantCli
 import           Formatting
 import           Playlistach.Common
 import           Playlistach.ServantExt
@@ -28,9 +27,7 @@ instance FromJSON ScTrack where
         title    <- v .: "title"
         duration <- v .: "duration"
         url      <- v .: "permalink_url"
-        let toScTrack :: Track -> ScTrack
-            toScTrack = coerce
-        return $ toScTrack $ T.Track
+        return $ ScTrack $ T.Track
             { T.externalId   = show (id :: Int)
             , T.title        = title
             , T.duration     = duration `div` 1000
@@ -39,17 +36,16 @@ instance FromJSON ScTrack where
             , T.origin       = Origin.SC }
     parseJSON _  = mzero
 
-type API = "tracks" :> RequiredParam "q" String :> RequiredParam "client_id" String :> Get '[JSON] [ScTrack]
+type API = "tracks" :> RequiredParam "client_id" String :> RequiredParam "q" String :> Get '[JSON] [ScTrack]
 
 _searchTracks = client (Proxy :: Proxy API) $ BaseUrl Https "api.soundcloud.com" 443
 
-runCli :: EitherT ServantCli.ServantError IO r -> IO r
-runCli = eitherT throwIO return
-
 searchTracks :: String -> String -> IO [Track]
-searchTracks clientId query = runCli $ coerce $ _searchTracks query clientId
+searchTracks clientId query = runServantClient $
+    coerce $ _searchTracks clientId query
 
 getStreamUrl :: String -> Track -> String
-getStreamUrl clientId track = formatToString template (T.externalId track) clientId
+getStreamUrl clientId track =
+    formatToString template (T.externalId track) clientId
   where
     template = "https://api.soundcloud.com/tracks/" % string % "/stream?client_id=" % string

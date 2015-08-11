@@ -6,12 +6,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns        #-}
 
-module Playlistach.ServantExt (RequiredParam) where
+module Playlistach.ServantExt (RequiredParam, runServantClient) where
 
 import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 import Data.Typeable (Typeable)
 import Data.String.Conversions (cs)
-import Control.Exception (Exception)
+import Control.Exception (Exception, throwIO)
+import Control.Monad.Trans.Either (EitherT, eitherT)
 import Network.HTTP.Client       as HTTP hiding (Proxy)
 import Network.HTTP.Types.Status as HTTP
 import Network.HTTP.Types.URI (parseQueryText)
@@ -53,3 +54,6 @@ instance (KnownSymbol sym, ToText a, HasClient sublayout) =>
       where
         req' = appendToQueryString pname (Just (toText param)) req
         pname = cs $ symbolVal (Proxy :: Proxy sym)
+
+runServantClient :: EitherT ServantError IO r -> IO r
+runServantClient = eitherT throwIO return

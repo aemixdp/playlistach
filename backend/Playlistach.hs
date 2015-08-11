@@ -34,9 +34,9 @@ import qualified Playlistach.Vk                as Vk
 import qualified Playlistach.Soundcloud        as Sc
 import           Playlistach.ServantExt
 
-search :: HTTP.Manager -> Redis.Connection -> Conf -> String -> EitherT ServantErr IO [Track]
-search connManager redisConn Conf{..} query = liftIO $ do
-    vkResults <- liftIO $ Vk.searchTracks vkLogin vkPassword query
+search :: HTTP.Manager -> Redis.Connection -> String -> Conf -> String -> IO [Track]
+search connManager redisConn vkAccessToken Conf{..} query = do
+    vkResults <- Vk.searchTracks vkAccessToken query
     scResults <- Sc.searchTracks scCliendId query
     let getIdAndStreamUrl getUrl track = (Track.externalId track, getUrl track)
     let urlMappings = map (getIdAndStreamUrl Vk.getStreamUrl) vkResults
@@ -74,16 +74,17 @@ type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [Cli
       :<|> "api" :> "stream"           :> RequiredParam "id" Int    :> Raw
       :<|> "api" :> "stream" :> "temp" :> RequiredParam "id" String :> Raw
 
-server :: HTTP.Manager -> Redis.Connection -> Conf -> Server API
-server connManager redisConn conf@Conf{..} =
+server :: HTTP.Manager -> Redis.Connection -> String -> Conf -> Server API
+server connManager redisConn vkAccessToken conf@Conf{..} =
     api_search :<|> api_stream :<|> api_stream_temp
   where
-    api_search query = coerce $ search connManager redisConn conf query
+    api_search query = liftIO $ coerce $ search connManager redisConn vkAccessToken conf query
     api_stream id _ respond = undefined
     api_stream_temp id _ respond = streamTemporary connManager redisConn id respond
 
 data Conf = Conf
-    { vkLogin               :: String
+    { vkClientId            :: String
+    , vkLogin               :: String
     , vkPassword            :: String
     , scCliendId            :: String
     , urlCacheExpireSeconds :: Integer }
@@ -92,6 +93,7 @@ readConf :: FilePath -> IO Conf
 readConf path =
     withFile path ReadMode $ \h -> do
         Conf <$> hGetLine h
+             <*> hGetLine h
              <*> hGetLine h
              <*> hGetLine h
              <*> fmap read (hGetLine h)
@@ -105,10 +107,11 @@ redisConnInfo :: Redis.ConnectInfo
 redisConnInfo = Redis.defaultConnectInfo
 
 main = do
-    conf <- readConf "./app.conf"
-    connManager <- newManager defaultManagerSettings
-    redisConn <- Redis.connect redisConnInfo
+    conf@Conf{..} <- readConf "./app.conf"
+    connManager   <- newManager defaultManagerSettings
+    redisConn     <- Redis.connect redisConnInfo
+    vkAccessToken <- Vk.login vkClientId vkLogin vkPassword
     Warp.runTLS tlsSettings Warp.defaultSettings $
         Wai.staticPolicy (Wai.addBase "./frontend") $
             serve (Servant.Proxy :: Servant.Proxy API) $
-                server connManager redisConn conf
+                server connManager redisConn vkAccessToken conf
