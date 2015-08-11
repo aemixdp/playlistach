@@ -18,6 +18,7 @@ import           Control.Monad.Trans.Either (EitherT(..))
 import           Pipes
 import qualified Pipes.HTTP                    as Pipes
 import           Network.HTTP.Client           as HTTP
+import           Network.HTTP.Client.TLS       as HTTP
 import           Network.HTTP.Types.Status     as HTTP
 import qualified Network.Wai                   as Wai
 import qualified Network.Wai.Middleware.Static as Wai
@@ -71,12 +72,12 @@ streamTemporary connManager redisConn id respond = do
         Nothing  -> error "Cached stream url expired!"
 
 type API = "api" :> "search" :> RequiredParam "query" String :> Get '[JSON] [ClientTrack]
-      :<|> "api" :> "stream"           :> RequiredParam "id" Int    :> Raw
       :<|> "api" :> "stream" :> "temp" :> RequiredParam "id" String :> Raw
+      :<|> "api" :> "stream"           :> RequiredParam "id" Int    :> Raw
 
 server :: HTTP.Manager -> Redis.Connection -> String -> Conf -> Server API
 server connManager redisConn vkAccessToken conf@Conf{..} =
-    api_search :<|> api_stream :<|> api_stream_temp
+    api_search :<|> api_stream_temp :<|> api_stream
   where
     api_search query = liftIO $ coerce $ search connManager redisConn vkAccessToken conf query
     api_stream id _ respond = undefined
@@ -108,7 +109,7 @@ redisConnInfo = Redis.defaultConnectInfo
 
 main = do
     conf@Conf{..} <- readConf "./app.conf"
-    connManager   <- newManager defaultManagerSettings
+    connManager   <- newManager tlsManagerSettings
     redisConn     <- Redis.connect redisConnInfo
     vkAccessToken <- Vk.login vkClientId vkLogin vkPassword
     Warp.runTLS tlsSettings Warp.defaultSettings $

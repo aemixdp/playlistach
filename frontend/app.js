@@ -6,7 +6,7 @@ function Indexed (index, data) {
 };
 
 function Paginator (pageSize) {
-    this.pageSize = pageSize;
+    this.pageSize = pageSize || RESULTS_PER_PAGE;
     this.pageCount = 1;
     this.pages = [[]];
 };
@@ -58,19 +58,29 @@ AudioStreamPlayer.prototype = {
         this.current = null;
         this.audioStreams = new Object(null);
     },
-    play: function (url) {
-        var audio = this.audioStreams[url];
+    play: function (track) {
+        if (this.current) {
+            this.audioStreams[this.current].pause();
+        }
+        this.current = track.externalId;
+        var audio = this.audioStreams[track.externalId];
         if (!audio) {
+            var url = "/api/stream/temp?id=" + encodeURIComponent(track.externalId);
+            console.log("url: " + url);
             audio = new Audio(url);
-            this.audioStreams[url] = audio;
+            audio.addEventListener('error', function (e) {
+                console.log("gotcha! " + e.target.error);
+            });
+            this.audioStreams[track.externalId] = audio;
         }
         audio.play();
     },
-    pause: function (url) {
-        var audio = this.audioStreams[url];
+    pause: function (track) {
+        var audio = this.audioStreams[track.externalId];
         if (audio) {
             audio.pause();
         }
+        this.current = null;
     }
 };
 
@@ -97,9 +107,10 @@ playlistach.directive("ngPlaylist", function () {
 });
 
 playlistach.controller("MainCtrl", function ($scope) {
-    $scope.searchQuery = "";
-    $scope.searchResultsPaginator = new Paginator(RESULTS_PER_PAGE);
-    $scope.userPlaylistPaginator = new Paginator(RESULTS_PER_PAGE);
+    $scope.searchQuery = "faltydl tell them stories";
+    $scope.searchResultsPaginator = new Paginator();
+    $scope.userPlaylistPaginator = new Paginator();
+    $scope.searchResultsPlayer = new AudioStreamPlayer();
 
     $scope.searchResultsPaginator.add({
         "title": "Burial - Archangel",
@@ -113,6 +124,8 @@ playlistach.controller("MainCtrl", function ($scope) {
             data.forEach(function (entry) {
                 newSearchResultsPaginator.add(entry);
             });
+            $scope.searchResultsPaginator = newSearchResultsPaginator;
+            $scope.$apply();
         });
     };
 });

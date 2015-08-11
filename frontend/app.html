@@ -18,12 +18,12 @@
             </span>
             {{entry.data.title}}
             <i class="fa fa-pause"
-               ng-show="entry.data.streamUrl == player.current"
-               ng-click="player.pause(entry.data.streamUrl)">
+               ng-show="entry.data.externalId == player.current"
+               ng-click="player.pause(entry.data)">
             </i>
             <i class="fa fa-play"
-               ng-show="entry.data.streamUrl != player.current"
-               ng-click="player.play(entry.data.streamUrl)">
+               ng-show="entry.data.externalId != player.current"
+               ng-click="player.play(entry.data)">
             </i>
             <span ng-switch="mode">
                 <i ng-switch-when="source"
