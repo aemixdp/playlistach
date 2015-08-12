@@ -40,8 +40,12 @@ Paginator.prototype = {
             var entry = this.pages[p + 1][0];
             this.removeAt(entry.index);
             entry.index.page = p;
-            entry.index.offset = this.pageSize;
+            entry.index.offset = this.pageSize - 1;
             page.push(entry);
+        }
+        if (this.pageCount > 1 && this.pages[this.pageCount - 1].length == 0) {
+            this.pages.pop();
+            this.pageCount -= 1;
         }
     }
 };
