@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Playlistach where
+module Main where
 
 import           System.IO
 import           Data.Coerce

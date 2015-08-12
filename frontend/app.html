@@ -11,21 +11,25 @@
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.3/angular.min.js"></script>
     <!-- Templates -->
     <script type="text/ng-template" id="playlist.html">
-        <div ng-repeat="entry in tracks.pages[page]">
-            <span ng-switch="entry.data.origin">
+        <div ng-repeat="entry in tracks.pages[page]" class="row">
+            <span ng-switch="entry.data.origin" class="cell">
                 <i ng-switch-when="VK" class="fa fa-vk"></i>
                 <i ng-switch-when="SC" class="fa fa-soundcloud"></i>
             </span>
-            {{entry.data.title}}
-            <i class="fa fa-pause"
-               ng-show="entry.data.externalId == player.current"
-               ng-click="player.pause(entry.data)">
-            </i>
-            <i class="fa fa-play"
-               ng-show="entry.data.externalId != player.current"
-               ng-click="player.play(entry.data)">
-            </i>
-            <span ng-switch="mode">
+            <span class="cell">
+                {{entry.data.title}}
+            </span>
+            <span class="cell">
+                <i class="fa fa-pause"
+                   ng-show="entry.data.externalId == player.current"
+                   ng-click="player.pause(entry.data)">
+                </i>
+                <i class="fa fa-play"
+                   ng-show="entry.data.externalId != player.current"
+                   ng-click="player.play(entry.data)">
+                </i>
+            </span>
+            <span ng-switch="mode" class="cell">
                 <i ng-switch-when="source"
                    ng-click="move(entry)"
                    class="fa fa-plus">
@@ -55,24 +59,26 @@
     </nav>
     <section id="search-results">
         <header>
-            Search results:
+            <h2>Search results</h2>
         </header>
         <div ng-playlist
              tracks="searchResultsPaginator"
              mode="source"
              dual="userPlaylistPaginator"
-             player="searchResultsPlayer">
+             player="searchResultsPlayer"
+             class="table">
         </div>
     </section>
     <section id="playlist">
         <header>
-            Playlist:
+            <h2>Playlist</h2>
         </header>
         <div ng-playlist
              tracks="userPlaylistPaginator"
              mode="target"
              dual="searchResultsPaginator"
-             player="userPlaylistPlayer">
+             player="userPlaylistPlayer"
+             class="table">
         </div>
     </section>
 </body>

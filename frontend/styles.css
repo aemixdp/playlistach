@@ -19,3 +19,46 @@ button:hover, i:hover {
   float: left;
   width: 40%;
 }
+
+.table {
+    display: table;
+    border-collapse: separate;
+    border-spacing: 3px;
+    width: 100%;
+}
+
+.row {
+    display: table-row;
+}
+
+.cell {
+    display: table-cell;
+    background-color: #FFEBE0;
+    vertical-align: middle;
+    padding: 5px 5px 5px 5px;
+    min-width: 20px;
+    border: 1px solid #EBEBE6;
+}
+
+.fa-plus {
+    position: relative;
+    top: 2px;
+}
+
+.fa-minus {
+    position: relative;
+    top: 2px;
+}
+
+.fa-play {
+    position: relative;
+    left: 2px;
+}
+
+#search-results .cell {
+    background-color: #FFFFCC;
+}
+
+#playlist .cell {
+    background-color: #E0FFE0;
+}
