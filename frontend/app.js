@@ -53,8 +53,9 @@ Paginator.prototype = {
     }
 };
 
-function AudioStreamPlayer () {
+function AudioStreamPlayer (options) {
     this.reset();
+    this.onPlaybackEnd = options.onPlaybackEnd || function () {};
 };
 
 AudioStreamPlayer.prototype = {
@@ -75,6 +76,10 @@ AudioStreamPlayer.prototype = {
             var url = "/api/stream/temp?id=" + encodeURIComponent(track.externalId);
             console.log("url: " + url);
             audio = new Audio(url);
+            audio.addEventListener('ended', function () {
+                this.current = null;
+                this.onPlaybackEnd();
+            }.bind(this));
             audio.addEventListener('error', function (e) {
                 console.log("gotcha! " + e.target.error);
             });
@@ -117,7 +122,9 @@ playlistach.controller("MainCtrl", function ($scope) {
     $scope.searchQuery = "faltydl tell them stories";
     $scope.searchResultsPaginator = new Paginator();
     $scope.userPlaylistPaginator = new Paginator();
-    $scope.searchResultsPlayer = new AudioStreamPlayer();
+    $scope.searchResultsPlayer = new AudioStreamPlayer({
+        onPlaybackEnd: function () { $scope.$apply(); }
+    });
     $scope.search = function (query) {
         $.get("api/search?query=" + encodeURIComponent(query), function (data) {
             var newSearchResultsPaginator = new Paginator();
