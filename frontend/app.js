@@ -115,13 +115,6 @@ playlistach.controller("MainCtrl", function ($scope) {
     $scope.searchResultsPaginator = new Paginator();
     $scope.userPlaylistPaginator = new Paginator();
     $scope.searchResultsPlayer = new AudioStreamPlayer();
-
-    $scope.searchResultsPaginator.add({
-        "title": "Burial - Archangel",
-        "origin": "SC",
-        "streamUrl": "1231"
-    }); // test entry
-
     $scope.search = function (query) {
         $.get("api/search?query=" + encodeURIComponent(query), function (data) {
             var newSearchResultsPaginator = new Paginator();

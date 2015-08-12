@@ -12,32 +12,25 @@
     <!-- Templates -->
     <script type="text/ng-template" id="playlist.html">
         <div ng-repeat="entry in tracks.pages[page]" class="row">
-            <span ng-switch="entry.data.origin" class="cell">
-                <i ng-switch-when="VK" class="fa fa-vk"></i>
-                <i ng-switch-when="SC" class="fa fa-soundcloud"></i>
+            <span class="cell track-button">
+                <i class="fa {{entry.data.origin == 'VK' ? 'fa-vk' : 'fa-soundcloud'}}"></i>
             </span>
             <span class="cell">
                 {{entry.data.title}}
             </span>
-            <span class="cell">
-                <i class="fa fa-pause"
-                   ng-show="entry.data.externalId == player.current"
-                   ng-click="player.pause(entry.data)">
-                </i>
-                <i class="fa fa-play"
-                   ng-show="entry.data.externalId != player.current"
-                   ng-click="player.play(entry.data)">
-                </i>
+            <span ng-show="entry.data.externalId == player.current"
+                  ng-click="player.pause(entry.data)"
+                  class="cell track-button">
+                <i class="fa fa-pause"></i>
             </span>
-            <span ng-switch="mode" class="cell">
-                <i ng-switch-when="source"
-                   ng-click="move(entry)"
-                   class="fa fa-plus">
-                </i>
-                <i ng-switch-when="target"
-                   ng-click="move(entry)"
-                   class="fa fa-minus">
-                </i>
+            <span ng-show="entry.data.externalId != player.current"
+                  ng-click="player.play(entry.data)"
+                  class="cell track-button">
+                <i class="fa fa-play"></i>
+            </span>
+            <span ng-click="move(entry)"
+                  class="cell track-button">
+                <i class="fa {{mode == 'source' ? 'fa-plus' : 'fa-minus'}}"></i>
             </span>
         </div>
     </script>

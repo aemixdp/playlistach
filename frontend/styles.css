@@ -1,12 +1,12 @@
 body {
-  text-align: center;
+    text-align: center;
 }
 
-button:hover, i:hover {
-  cursor: pointer;
+button:hover {
+    cursor: pointer;
 }
 
-.orange, i:hover {
+.orange {
     color: #FF6600;
 }
 
@@ -53,6 +53,18 @@ button:hover, i:hover {
 .fa-play {
     position: relative;
     left: 2px;
+    top: 1px;
+}
+
+.track-button {
+    box-sizing: border-box;
+    width: 38px;
+}
+
+.track-button:hover {
+    cursor: pointer;
+    color: #FF6600;
+    border: 1px solid #FFC299;
 }
 
 #search-results .cell {
