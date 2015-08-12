@@ -47,6 +47,9 @@ Paginator.prototype = {
             this.pages.pop();
             this.pageCount -= 1;
         }
+    },
+    isEmpty: function () {
+        return this.pages[0].length == 0;
     }
 };
 

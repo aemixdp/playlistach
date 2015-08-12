@@ -10,14 +10,8 @@ button:hover {
     color: #FF6600;
 }
 
-#search-results {
-  margin-left: 10%;
-}
-
 #search-results, #playlist {
-  box-sizing: border-box;
-  float: left;
-  width: 40%;
+  display: inline-block;
 }
 
 .table {

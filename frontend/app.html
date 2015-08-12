@@ -50,7 +50,7 @@
             Search
         </button>
     </nav>
-    <section id="search-results">
+    <section id="search-results" ng-hide="searchResultsPaginator.isEmpty()">
         <header>
             <h2>Search results</h2>
         </header>
@@ -62,7 +62,7 @@
              class="table">
         </div>
     </section>
-    <section id="playlist">
+    <section id="playlist" ng-hide="userPlaylistPaginator.isEmpty()">
         <header>
             <h2>Playlist</h2>
         </header>
